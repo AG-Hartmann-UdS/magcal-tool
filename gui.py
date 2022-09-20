@@ -28,6 +28,7 @@ class CalibrationTool(tk.Tk):
         self.__def_filename = 'trial.txt'
         self.__def_com = 'COM10'
         self.__def_delim = ","
+        self.__def_field = 50.0
 
         # Form entry for serial port
         self.__com_label__ = tk.Label(self, text="Serial port:")
@@ -82,6 +83,14 @@ class CalibrationTool(tk.Tk):
         self.__folder_button__ = tk.Button(self, text="...", command=self.__set_folder__)
         self.__folder_button__.grid(row=3, column=4, padx=5, pady=5, sticky='w')
 
+        # # Entry for the earth's magnetic field strength
+        self.__geomag_label__ = tk.Label(self, text="|B|=")
+        self.__geomag_label__.grid(row=3, column=5, padx=5, pady=5, sticky='e')
+        #
+        self.__geomag_entry_v__ = tk.StringVar()
+        self.__geomag_entry__ = tk.Entry(self, textvariable=self.__geomag_entry_v__, width=7)
+        self.__geomag_entry__.grid(row=3, column=6, padx=5, pady=5, sticky='w')
+
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111, projection='3d')
 
@@ -95,23 +104,23 @@ class CalibrationTool(tk.Tk):
 
         # Results
         self.__compute_button__ = tk.Button(self, text="Calibrate", command=self.__compute_coefficients__)
-        self.__compute_button__.grid(row=4, column=5, padx=5, pady=5, sticky='nsew')
+        self.__compute_button__.grid(row=4, column=5, columnspan=2, padx=5, pady=5, sticky='nsew')
 
         self.U = np.zeros([3, 3])
         self.c = np.zeros(3)
 
         self.__label_U__ = tk.Label(self, text="Soft-iron \ncalibration matrix:", justify='left')
-        self.__label_U__.grid(row=5, column=5, padx=5, pady=5, sticky='sw')
+        self.__label_U__.grid(row=5, column=5, columnspan=2, padx=5, pady=5, sticky='sw')
         self.__results_U__ = tk.Label(self, text=matrix_string(self.U))
-        self.__results_U__.grid(row=6, column=5, padx=5, pady=5, sticky='nw')
+        self.__results_U__.grid(row=6, column=5, columnspan=2, padx=5, pady=5, sticky='nw')
         self.__label_c__ = tk.Label(self, text="Hard-iron \noffset vector:", justify='left')
-        self.__label_c__.grid(row=7, column=5, padx=5, pady=5, sticky='sw')
+        self.__label_c__.grid(row=7, column=5, columnspan=2, padx=5, pady=5, sticky='sw')
         self.__results_c__ = tk.Label(self, text=matrix_string(self.c))
-        self.__results_c__.grid(row=8, column=5, padx=5, pady=5, sticky='nw')
+        self.__results_c__.grid(row=8, column=5, columnspan=2, padx=5, pady=5, sticky='nw')
 
         # Save the calibration parameters
         self__results_button__ = tk.Button(self, text="Save", command=self.__save_coefficients__)
-        self__results_button__.grid(row=9, column=5, padx=5, pady=5, sticky='nsew')
+        self__results_button__.grid(row=9, column=5, columnspan=2, padx=5, pady=5, sticky='nsew')
 
         # Resize the columns
         self.grid_columnconfigure(0, weight=0)
@@ -125,13 +134,13 @@ class CalibrationTool(tk.Tk):
         self.grid_rowconfigure(0, weight=0)
         self.grid_rowconfigure(1, weight=1)
         self.grid_rowconfigure(2, weight=1)
-        self.grid_rowconfigure(3, weight=1)
+        self.grid_rowconfigure(3, weight=0)
         self.grid_rowconfigure(4, weight=0)
-        self.grid_rowconfigure(5, weight=1)
-        self.grid_rowconfigure(6, weight=0)
-        self.grid_rowconfigure(7, weight=1)
-        self.grid_rowconfigure(8, weight=0)
-        self.grid_rowconfigure(9, weight=1)
+        self.grid_rowconfigure(5, weight=0)
+        self.grid_rowconfigure(6, weight=1)
+        self.grid_rowconfigure(7, weight=0)
+        self.grid_rowconfigure(8, weight=1)
+        self.grid_rowconfigure(9, weight=0)
 
         self.ser = None
         self.file = None
@@ -205,6 +214,7 @@ class CalibrationTool(tk.Tk):
         params = compute_ellipsoid(data)
         if params is not None:
             self.U, self.c = params
+            self.U *= float(self.__geomag_entry_v__.get())
             self.__results_U__.config(text=matrix_string(self.U))
             self.__results_c__.config(text=matrix_string(self.c))
         else:
@@ -231,12 +241,14 @@ class CalibrationTool(tk.Tk):
             self.__baud_menu_v__.set(str(var_dict['baudrate']))
             self.__folder_entry_v__.set(var_dict['folder'])
             self.__delim_entry_v__.set(var_dict['delimiter'])
+            self.__geomag_entry_v__.set(str(var_dict['field']))
         else:
             self.__filen_entry_v__.set(self.__def_filename)
             self.__com_port_v__.set(self.__def_com)
             self.__baud_menu_v__.set(str(self.__def_baudrate))
             self.__folder_entry_v__.set(self.__def_dir_path)
             self.__delim_entry_v__.set(self.__def_delim)
+            self.__geomag_entry_v__.set(str(self.__def_field))
 
     def __sweep_port__(self):
 
@@ -259,7 +271,8 @@ class CalibrationTool(tk.Tk):
             'baudrate': int(self.__baud_menu_v__.get()),
             'com_port': self.__com_port_v__.get(),
             'filename': self.__filen_entry_v__.get(),
-            'delimiter': self.__delim_entry_v__.get()
+            'delimiter': self.__delim_entry_v__.get(),
+            'field': self.__geomag_entry_v__.get()
         }
         dict_str = json.dumps(var_dict, indent=4)
         with open(self.__cache_file__, 'w') as f:
