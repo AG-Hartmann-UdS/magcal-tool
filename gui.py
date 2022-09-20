@@ -3,14 +3,13 @@ from tkinter import messagebox, filedialog
 from os import path
 import serial.tools.list_ports as stl
 from serial import SerialException
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import json
 from serial_port import SerialPort
 import numpy as np
-from fit_ellipsoid import compute_ellipsoid
-from utilities import matrix_string
+from fit_ellipsoid import fit_ellipsoid
+from utilities import matrix_string, generate_ellispoid
 
 
 class CalibrationTool(tk.Tk):
@@ -93,6 +92,7 @@ class CalibrationTool(tk.Tk):
 
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111, projection='3d')
+        self.ax.set_box_aspect((1, 1, 1))
 
         self.__plot_canvas__ = FigureCanvasTkAgg(self.fig, master=self)
         self.__plot_canvas__.draw()
@@ -152,6 +152,7 @@ class CalibrationTool(tk.Tk):
         self.filename = self.__def_filename
         self.folder = self.__def_dir_path
         self.delimiter = self.__def_delim
+        self.field = self.__def_field
 
         self.start_logging = False
 
@@ -174,6 +175,9 @@ class CalibrationTool(tk.Tk):
 
         # Filename
         self.filename = self.__filen_entry_v__.get()
+
+        self.delimiter = self.__delim_entry_v__.get()
+        self.field = self.__geomag_entry_v__.get()
 
         try:
             self.ser = SerialPort(self.com_port, self.folder, baudrate=self.baudrate, delimiter=self.delimiter)
@@ -207,23 +211,33 @@ class CalibrationTool(tk.Tk):
                                      message="Please close serial port before performing computation!")
                 return
         try:
+            self.delimiter = self.__delim_entry_v__.get()
             data = np.loadtxt(path.join(self.folder, self.filename), delimiter=self.delimiter)
         except FileNotFoundError:
             messagebox.showerror("Error!", message="No datafile found at location! Try collecting again")
             return
-        params = compute_ellipsoid(data)
+        params = fit_ellipsoid(data)
         if params is not None:
+            self.field = float(self.__geomag_entry_v__.get())
             self.U, self.c = params
-            self.U *= float(self.__geomag_entry_v__.get())
+            self.U *= self.field
             self.__results_U__.config(text=matrix_string(self.U))
             self.__results_c__.config(text=matrix_string(self.c))
+
+            # Results are also plotting
+            x1, y1, z1, x2, y2, z2 = generate_ellispoid(self.U, self.c, self.field)
+            if self.ser is None:
+                self.ax.scatter3D(data[:, 0], data[:, 1], data[:, 2], c='r', alpha=0.6)
+            self.ax.plot_surface(x1, y1, z1, color='xkcd:sky blue', alpha=0.5, antialiased=True)
+            self.ax.plot_surface(x2, y2, z2, color='r', alpha=0.5, antialiased=True)
         else:
             messagebox.showerror("Error!",
                                  message="Not enough data to perform calibration!")
 
     def __save_coefficients__(self):
         data_dict = {"U": np.array2string(self.U, separator=",", formatter={'float_kind': lambda x: "%.4f" % x}),
-                     "c": np.array2string(self.c, separator=",", formatter={'float_kind': lambda x: "%.4f" % x})}
+                     "c": np.array2string(self.c, separator=",", formatter={'float_kind': lambda x: "%.4f" % x}),
+                     "B": str(self.field)}
         dict_str = json.dumps(data_dict, indent=4)
         with open("parameters.json", "w") as f:
             f.write(dict_str)

@@ -9,7 +9,7 @@
 import numpy as np
 
 
-def compute_ellipsoid(X):
+def fit_ellipsoid(X):
 
     if len(X.shape) == 2:
         N, _ = X.shape
