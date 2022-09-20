@@ -11,6 +11,7 @@ a triaxial magnetometer.
 - Select correct baud rate and serial port name. Connect to the serial port of the arduino device.
 - Click "Open Port" and start collecting data by rotating the sensor in all possible orientations until an approximate sphere or ellipsoid is formed by the data. 
 Then click "Close Port" to end the data collection.
+- Enter the expected magnetic field magnitude. You can obtain this either from an already calibrated magnetometer or from [NCEI geomagnetic calculator](https://www.ngdc.noaa.gov/geomag/calculators/magcalc.shtml?useFullSite=true#igrfwmm) tool. 
 - Click on calibrate to estimate the soft iron calibration matrix and the offset vector. Resolve any errors by collecting some more data
 and click "Calibration". The new matrix should be displayed on the tool.
 - Clicking "Save" outputs the data into a file.
