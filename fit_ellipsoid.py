@@ -63,5 +63,21 @@ def fit_ellipsoid(X):
     c = -1 * np.dot(v, np.linalg.inv(U))
     U = s * U
 
+    # Refill the lower triangular part symmetrically
+    U[1][0] = U[0][1]
+    U[2][0] = U[0][2]
+    U[2][1] = U[1][2]
+
     # return Shape U and
     return U, c
+
+
+def transform_mag(X, U, c):
+    if len(X.shape) == 0:
+        raise ValueError
+
+    if len(X.shape) < 2:
+        X = np.expand_dims(X, 0)
+
+    # Transform the values and return the new values of the magnetic field vectors
+    return np.dot(X - c, U)
