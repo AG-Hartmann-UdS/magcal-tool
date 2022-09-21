@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import json
 from serial_port import SerialPort
 import numpy as np
-from fit_ellipsoid import fit_ellipsoid
-from utilities import matrix_string, generate_ellispoid
+from fit_ellipsoid import fit_ellipsoid, transform_mag
+from utilities import generate_ellispoid, matrix_string
 
 
 class CalibrationTool(tk.Tk):
@@ -18,6 +18,7 @@ class CalibrationTool(tk.Tk):
         super().__init__()
         self.title("Magnetic Calibration tool")
         self.resizable(False, False)
+        # self.geometry("1024x468")
         self.protocol("WM_DELETE_WINDOW", self.close)
 
         # Start building the window
@@ -91,12 +92,16 @@ class CalibrationTool(tk.Tk):
         self.__geomag_entry__.grid(row=3, column=6, padx=5, pady=5, sticky='w')
 
         self.fig = plt.figure()
-        self.ax = self.fig.add_subplot(111, projection='3d')
-        self.ax.set_box_aspect((1, 1, 1))
+        self.ax1 = self.fig.add_subplot(121, projection='3d')
+        self.ax1.dist = 8.5
+        self.ax2 = self.fig.add_subplot(122, projection='3d')
+        self.ax1.set_box_aspect((1, 1, 1))
+        self.ax2.set_box_aspect((1, 1, 1))
+        self.ax2.dist = 8.5
 
         self.__plot_canvas__ = FigureCanvasTkAgg(self.fig, master=self)
         self.__plot_canvas__.draw()
-        self.__plot_canvas__.get_tk_widget().grid(row=4, column=0, columnspan=5, rowspan=5)
+        self.__plot_canvas__.get_tk_widget().grid(row=4, column=0, columnspan=5, rowspan=5, sticky='nsew')
 
         # A basic status bar
         self.__status_bar__ = tk.Label(self, text="Ready...", relief=tk.SUNKEN, anchor=tk.W)
@@ -129,6 +134,8 @@ class CalibrationTool(tk.Tk):
         self.grid_columnconfigure(3, weight=0)
         self.grid_columnconfigure(4, weight=0)
         self.grid_columnconfigure(5, weight=1)
+        self.grid_columnconfigure(6, weight=0)
+        self.grid_columnconfigure(7, weight=0)
 
         # Resize the rows
         self.grid_rowconfigure(0, weight=0)
@@ -227,9 +234,11 @@ class CalibrationTool(tk.Tk):
             # Results are also plotting
             x1, y1, z1, x2, y2, z2 = generate_ellispoid(self.U, self.c, self.field)
             if self.ser is None:
-                self.ax.scatter3D(data[:, 0], data[:, 1], data[:, 2], c='r', alpha=0.6)
-            self.ax.plot_surface(x1, y1, z1, color='xkcd:sky blue', alpha=0.5, antialiased=True)
-            self.ax.plot_surface(x2, y2, z2, color='r', alpha=0.5, antialiased=True)
+                self.ax1.scatter3D(data[:, 0], data[:, 1], data[:, 2], c='r', alpha=0.6)
+            self.ax1.plot_surface(x2, y2, z2, color='r', alpha=0.5, antialiased=True)
+            data_tx = transform_mag(data, self.U, self.c)
+            self.ax2.scatter3D(data_tx[:, 0], data_tx[:, 1], data_tx[:, 2], c='xkcd:sky blue', alpha=0.6)
+            self.ax2.plot_surface(x1, y1, z1, color='xkcd:sky blue', alpha=0.5, antialiased=True)
         else:
             messagebox.showerror("Error!",
                                  message="Not enough data to perform calibration!")
@@ -308,7 +317,7 @@ class CalibrationTool(tk.Tk):
         while 1:
             if self.start_logging:
                 self.ser.fill_buffer()
-                self.ax.scatter(self.ser.data_buffer[:, 0], self.ser.data_buffer[:, 1],
+                self.ax1.scatter(self.ser.data_buffer[:, 0], self.ser.data_buffer[:, 1],
                                 self.ser.data_buffer[:, 2], c='r')
                 self.__plot_canvas__.draw()
                 np.savetxt(self.file, self.ser.data_buffer, delimiter=self.delimiter)
@@ -316,3 +325,4 @@ class CalibrationTool(tk.Tk):
                 self.update()
             except tk.TclError:
                 break
+
